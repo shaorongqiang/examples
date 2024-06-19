@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <ethc/abi.h>
 
@@ -17,9 +18,9 @@ int main()
     ok(eth_abi_init(&abi, ETH_ABI_ENCODE));
 
     ok(eth_abi_array(&abi, NULL));
-    ok(eth_abi_bytes32(&abi, &f1));
-    ok(eth_abi_bytes32(&abi, &f2));
-    ok(eth_abi_bytes32(&abi, &f3));
+    ok(eth_abi_bytes32(&abi, f1));
+    ok(eth_abi_bytes32(&abi, f2));
+    ok(eth_abi_bytes32(&abi, f3));
     ok(eth_abi_array_end(&abi));
 
     ok(eth_abi_to_hex(&abi, &hex, &hexlen));

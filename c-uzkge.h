@@ -3,12 +3,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Bytes {
+typedef struct Bytes
+{
   uint32_t len;
-  const uint8_t *data;
+  uint8_t *data;
 } Bytes;
 
-typedef struct CardParam {
+typedef struct CardParam
+{
   struct Bytes x1;
   struct Bytes y1;
   struct Bytes x2;

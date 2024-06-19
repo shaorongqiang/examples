@@ -1,10 +1,17 @@
 #include "c-uzkge.h"
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <ethc/abi.h>
 
 #define ok(ethcop) assert(ethcop >= 0)
+
+typedef struct Bytes2
+{
+    size_t len;
+    uint8_t *data;
+} Bytes2;
 
 int main()
 {
@@ -73,20 +80,34 @@ int main()
                                        inputs, inputs_len,
                                        committed_seed,
                                        random_number,
-                                       out_outputs, &out_outputs_len,
+                                       (char *)out_outputs, &out_outputs_len,
                                        out_proof, &out_proof_len);
     if (res < 0)
     {
         return res;
     }
-    Bytes outputs[50];
-    memset(outputs, 0, sizeof(outputs));
+    Bytes2 verifier_params_encode = {len : verifier_params.len, data : verifier_params.data};
+
+    Bytes2 inputs_encode[50];
+    memset(inputs_encode, 0, sizeof(inputs_encode));
+    for (int i = 0; i < inputs_len; i++)
+    {
+        inputs_encode[i].len = inputs[i].len;
+        inputs_encode[i].data = inputs[i].data;
+    }
+
+    Bytes2 outputs_encode[50];
+    memset(outputs_encode, 0, sizeof(outputs_encode));
     int outputs_len = out_outputs_len;
     for (int i = 0; i < outputs_len; i++)
     {
-        outputs[i].len = sizeof(out_outputs[i]);
-        outputs[i].data = out_outputs[i];
+        outputs_encode[i].len = sizeof(out_outputs[i]);
+        outputs_encode[i].data = out_outputs[i];
     }
+
+    Bytes2 commitment_encode = {len : commitment.len, data : commitment.data};
+    Bytes2 random_number_encode = {len : random_number.len, data : random_number.data};
+    Bytes2 proof_encode = {len : out_proof_len, data : out_proof};
 
     struct eth_abi abi;
     char *hex;
@@ -94,13 +115,14 @@ int main()
 
     ok(eth_abi_init(&abi, ETH_ABI_ENCODE));
 
-    ok(eth_abi_bytes(&abi, &verifier_params.data, &verifier_params.len));
+    // uint8_t *verifier_params_bytes[] = {verifier_params_encode.data};
+    ok(eth_abi_bytes(&abi, &verifier_params_encode.data, &verifier_params_encode.len));
 
     // inputs
     ok(eth_abi_array(&abi, NULL));
     for (int i = 0; i < inputs_len; i++)
     {
-        ok(eth_abi_bytes(&abi, &inputs[i].data, &inputs[i].len));
+        ok(eth_abi_bytes(&abi, &inputs_encode[i].data, &inputs_encode[i].len));
     }
     ok(eth_abi_array_end(&abi));
 
@@ -108,13 +130,13 @@ int main()
     ok(eth_abi_array(&abi, NULL));
     for (int i = 0; i < outputs_len; i++)
     {
-        ok(eth_abi_bytes(&abi, &outputs[i].data, &outputs[i].len));
+        ok(eth_abi_bytes(&abi, &outputs_encode[i].data, &outputs_encode[i].len));
     }
     ok(eth_abi_array_end(&abi));
 
-    ok(eth_abi_bytes(&abi, &commitment.data, &commitment.len));
-    ok(eth_abi_bytes(&abi, &random_number.data, &random_number.len));
-    ok(eth_abi_bytes(&abi, &out_proof, &out_proof_len));
+    ok(eth_abi_bytes(&abi, &commitment_encode.data, &commitment_encode.len));
+    ok(eth_abi_bytes(&abi, &random_number_encode.data, &random_number_encode.len));
+    ok(eth_abi_bytes(&abi, &proof_encode.data, &proof_encode.len));
 
     ok(eth_abi_to_hex(&abi, &hex, &hexlen));
     ok(eth_abi_free(&abi));

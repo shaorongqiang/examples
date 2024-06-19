@@ -1,10 +1,25 @@
 #include "c-uzkge.h"
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <ethc/abi.h>
 
 #define ok(ethcop) assert(ethcop >= 0)
+
+typedef struct Bytes2
+{
+    size_t len;
+    uint8_t *data;
+} Bytes2;
+
+typedef struct CardParam2
+{
+    struct Bytes2 x1;
+    struct Bytes2 y1;
+    struct Bytes2 x2;
+    struct Bytes2 y2;
+} CardParam2;
 
 int main()
 {
@@ -53,55 +68,60 @@ int main()
         inputs_len,
         n_cards,
         out_verifier_params, &out_verifier_params_len,
-        out_outputs, &out_outputs_len,
+        (char *)out_outputs, &out_outputs_len,
         out_proof, &out_proof_len);
 
     if (res < 0)
     {
         return res;
     }
-    struct Bytes verifier_params = {len : out_verifier_params_len, data : out_verifier_params};
+    struct Bytes2 verifier_params_encode = {len : out_verifier_params_len, data : out_verifier_params};
 
-    CardParam outputs[52];
-    memset(outputs, 0, sizeof(outputs));
-    for (int i = 0; i < out_outputs_len; i++)
+    CardParam2 inputs_encode[52];
+    memset(inputs_encode, 0, sizeof(inputs_encode));
+    for (int i = 0; i < inputs_len; i++)
     {
-        Bytes x1 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][0]};
-        Bytes y1 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][1]};
-        Bytes x2 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][2]};
-        Bytes y2 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][3]};
+        Bytes2 x1 = {len : inputs[i].x1.len, data : inputs[i].x1.data};
+        Bytes2 y1 = {len : inputs[i].y1.len, data : inputs[i].y1.data};
+        Bytes2 x2 = {len : inputs[i].x2.len, data : inputs[i].x2.data};
+        Bytes2 y2 = {len : inputs[i].y2.len, data : inputs[i].y2.data};
 
-        CardParam param = {x1 : x1, y1 : y1, x2 : x2, y2 : y2};
-        outputs[i] = param;
+        CardParam2 param = {x1 : x1, y1 : y1, x2 : x2, y2 : y2};
+        inputs_encode[i] = param;
     }
 
-    struct Bytes proof = {len : out_proof_len, data : out_proof};
+    CardParam2 outputs_encode[52];
+    memset(outputs_encode, 0, sizeof(outputs_encode));
+    for (int i = 0; i < out_outputs_len; i++)
+    {
+        Bytes2 x1 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][0]};
+        Bytes2 y1 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][1]};
+        Bytes2 x2 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][2]};
+        Bytes2 y2 = {len : sizeof(out_outputs[i][0]), data : out_outputs[i][3]};
+
+        CardParam2 param = {x1 : x1, y1 : y1, x2 : x2, y2 : y2};
+        outputs_encode[i] = param;
+    }
+
+    struct Bytes2 proof_encode = {len : out_proof_len, data : out_proof};
 
     struct eth_abi abi;
     char *hex;
     size_t hexlen;
 
-    /*
-            &[
-                ParamType::Bytes,
-                ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Bytes)))),
-                ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Bytes)))),
-                ParamType::Bytes,
-            ],
-    */
     ok(eth_abi_init(&abi, ETH_ABI_ENCODE));
 
-    ok(eth_abi_bytes(&abi, &verifier_params.data, &verifier_params.len));
+    ok(eth_abi_bytes(&abi, &verifier_params_encode.data, &verifier_params_encode.len));
 
     // inputs
     ok(eth_abi_array(&abi, NULL));
     for (int i = 0; i < inputs_len; i++)
     {
         ok(eth_abi_array(&abi, NULL));
-        ok(eth_abi_bytes(&abi, &inputs[i].x1.data, &inputs[i].x1.len));
-        ok(eth_abi_bytes(&abi, &inputs[i].y1.data, &inputs[i].y1.len));
-        ok(eth_abi_bytes(&abi, &inputs[i].x2.data, &inputs[i].x2.len));
-        ok(eth_abi_bytes(&abi, &inputs[i].y2.data, &inputs[i].y2.len));
+        ok(eth_abi_bytes(&abi, &inputs_encode[i].x1.data, &inputs_encode[i].x1.len));
+        ok(eth_abi_bytes(&abi, &inputs_encode[i].y1.data, &inputs_encode[i].y1.len));
+        ok(eth_abi_bytes(&abi, &inputs_encode[i].x2.data, &inputs_encode[i].x2.len));
+        ok(eth_abi_bytes(&abi, &inputs_encode[i].y2.data, &inputs_encode[i].y2.len));
         ok(eth_abi_array_end(&abi));
     }
     ok(eth_abi_array_end(&abi));
@@ -111,15 +131,15 @@ int main()
     for (int i = 0; i < out_outputs_len; i++)
     {
         ok(eth_abi_array(&abi, NULL));
-        ok(eth_abi_bytes(&abi, &outputs[i].x1.data, &outputs[i].x1.len));
-        ok(eth_abi_bytes(&abi, &outputs[i].y1.data, &outputs[i].y1.len));
-        ok(eth_abi_bytes(&abi, &outputs[i].x2.data, &outputs[i].x2.len));
-        ok(eth_abi_bytes(&abi, &outputs[i].y2.data, &outputs[i].y2.len));
+        ok(eth_abi_bytes(&abi, &outputs_encode[i].x1.data, &outputs_encode[i].x1.len));
+        ok(eth_abi_bytes(&abi, &outputs_encode[i].y1.data, &outputs_encode[i].y1.len));
+        ok(eth_abi_bytes(&abi, &outputs_encode[i].x2.data, &outputs_encode[i].x2.len));
+        ok(eth_abi_bytes(&abi, &outputs_encode[i].y2.data, &outputs_encode[i].y2.len));
         ok(eth_abi_array_end(&abi));
     }
     ok(eth_abi_array_end(&abi));
 
-    ok(eth_abi_bytes(&abi, &out_proof, &out_proof_len));
+    ok(eth_abi_bytes(&abi, &proof_encode.data, &proof_encode.len));
 
     ok(eth_abi_to_hex(&abi, &hex, &hexlen));
     ok(eth_abi_free(&abi));
